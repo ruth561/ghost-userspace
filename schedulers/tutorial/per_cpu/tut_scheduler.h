@@ -3,6 +3,7 @@
 #include "lib/agent.h"
 #include "lib/ghost.h"
 #include "lib/scheduler.h"
+#include <deque>
 
 
 namespace ghost {
@@ -34,18 +35,21 @@ public:
 protected:
   // コンパイルを通すために実装（中身は無）
   void TaskNew(Task<>* task, const Message& msg) final;
-  void TaskRunnable(Task<>* task, const Message& msg) final {}
-  void TaskDeparted(Task<>* task, const Message& msg) final {}
-  void TaskDead(Task<>* task, const Message& msg) final {}
-  void TaskYield(Task<>* task, const Message& msg) final {}
-  void TaskBlocked(Task<>* task, const Message& msg) final {}
-  void TaskPreempted(Task<>* task, const Message& msg) final {}
+  void TaskRunnable(Task<>* task, const Message& msg) final;
+  void TaskDeparted(Task<>* task, const Message& msg) final;
+  void TaskDead(Task<>* task, const Message& msg) final;
+  void TaskYield(Task<>* task, const Message& msg) final;
+  void TaskBlocked(Task<>* task, const Message& msg) final;
+  void TaskPreempted(Task<>* task, const Message& msg) final;
 
 private:
   // Channel用メンバ変数
   // このクラスがChannelのインスタンスのライフタイムを管理する
   std::unique_ptr<Channel> channels_[MAX_CPUS];
   Channel *default_channel_ = nullptr;
+  // 実行可能キュー
+  // このキューの先頭にあるタスクが次に実行状態となるorすでに現在実行中のタスク
+  std::deque<Task<> *> rq_;
 };
 
 inline std::unique_ptr<TutorialScheduler> TutorialMultiThreadedScheduler(Enclave *enclave, CpuList cpulist) {
