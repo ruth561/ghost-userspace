@@ -59,6 +59,12 @@ public:
  
   void Schedule(const Cpu &cpu, const StatusWord &agent_sw);
 	
+  // 初期化処理の最後の方で呼ばれる関数。
+  void EnclaveReady() final {
+    // MSG_CPU_TICKメッセージを発行するように設定
+    enclave()->SetDeliverTicks(true);
+  }
+
   // 実装必須
   Channel& GetDefaultChannel() final { return *default_channel_; }
   // 実装任意
@@ -73,6 +79,8 @@ protected:
   void TaskYield(TutorialTask* task, const Message& msg) final;
   void TaskBlocked(TutorialTask* task, const Message& msg) final;
   void TaskPreempted(TutorialTask* task, const Message& msg) final;
+
+  void CpuTick(const Message& msg) final;
 
 private:
   // Channel用メンバ変数

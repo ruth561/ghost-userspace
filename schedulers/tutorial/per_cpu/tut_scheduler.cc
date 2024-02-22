@@ -86,12 +86,23 @@ void TutorialScheduler::TaskRunnable(TutorialTask* task, const Message& msg) {
 
 // 実行状態 -> スリープ状態
 void TutorialScheduler::TaskBlocked(TutorialTask* task, const Message& msg) {
-  CHECK(!rq_.empty());
-  CHECK_EQ(task, rq_.front()); // 現在実行状態のタスクはrq_の先頭にいるはず
-  CHECK(task->running());
-
-  task->SetState(TutorialTaskState::kBlocked);
-  rq_.pop_front();
+  // MSG_CPU_TICKとの干渉が考えられるため、!task->running()という場合が考えられる。
+  // その場合はtask->queued()となっているはずである。
+  if (task->running()) {
+    CHECK(!rq_.empty());
+    CHECK_EQ(task, rq_.front());
+    task->SetState(TutorialTaskState::kBlocked);
+    rq_.pop_front();
+  } else if (task->queued()) {
+    task->SetState(TutorialTaskState::kBlocked);
+    rq_.erase(std::remove(
+      rq_.begin(), 
+      rq_.end(), 
+      task), rq_.end());
+  } else {
+    // B -> B という遷移は起きないはず
+    CHECK(false);
+  }
 }
 
 // 任意の状態 -> 他のスケジューリングクラス
@@ -116,23 +127,44 @@ void TutorialScheduler::TaskDead(TutorialTask* task, const Message& msg) {
 
 // 実行状態 -> 実行可能状態
 void TutorialScheduler::TaskYield(TutorialTask* task, const Message& msg) {
-  CHECK(!rq_.empty());
-  CHECK_EQ(task, rq_.front());
-  CHECK(task->running());
+  // MSG_CPU_TICKとの干渉が考えられるため!task->running()となっている可能性がある。
+  if (task->running()) {
+    CHECK(!rq_.empty());
+    CHECK_EQ(task, rq_.front());
 
-  // rq_の先頭のタスクをrq_の最後尾に移動する
-  task->SetState(TutorialTaskState::kQueued);
-  rq_.pop_front();
-  rq_.push_back(task);
+    // rq_の先頭のタスクをrq_の最後尾に移動する
+    task->SetState(TutorialTaskState::kQueued);
+    rq_.pop_front();
+    rq_.push_back(task);
+  }
 }
 
 // 実行状態 ➙ 実行可能状態
 void TutorialScheduler::TaskPreempted(TutorialTask* task, const Message& msg) {
-  CHECK(!rq_.empty());
-  CHECK_EQ(task, rq_.front());
-  CHECK(task->running());
+  // MSG_CPU_TICKとの干渉が考えられるため!task->running()となっている可能性がある。
+  if (task->running()) {
+    CHECK(!rq_.empty());
+    CHECK_EQ(task, rq_.front());
 
-  task->SetState(TutorialTaskState::kQueued);
+    // rq_の先頭のタスクをrq_の最後尾に移動する
+    task->SetState(TutorialTaskState::kQueued);
+  }
+}
+
+// MSG_CPU_TICKは他のメッセージと干渉する可能性があるため、注意深くする必要がある。
+// 例えば、MSG_TASK_BLOCKEDと同じタイミングで発行された場合の処理の手続きをしっかり
+// とやる必要がある。
+void TutorialScheduler::CpuTick(const Message& msg) {
+  if (!rq_.empty()) {
+    auto current = rq_.front();
+
+    // もしrq_の先頭が実行状態なら、プリエンプトしrq_の最後尾に追加する
+    if (current->running()) {
+      current->SetState(TutorialTaskState::kQueued);
+      rq_.pop_front();
+      rq_.push_back(current);
+    }
+  }
 }
 
 } // namespace ghost

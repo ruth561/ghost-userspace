@@ -1324,6 +1324,18 @@ cc_binary(
 )
 
 cc_binary(
+    name = "busy_loop_2_threads",
+    srcs = [
+        "bins/busy_loop_2_threads.cc",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":base",
+        ":ghost",
+    ],
+)
+
+cc_binary(
     name = "tutorial_per_cpu_agent",
     srcs = [
         "schedulers/tutorial/per_cpu/tut_agent.cc",
