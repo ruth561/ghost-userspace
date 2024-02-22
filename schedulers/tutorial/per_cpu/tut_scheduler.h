@@ -8,11 +8,43 @@
 
 namespace ghost {
 
-class TutorialScheduler : public BasicDispatchScheduler<Task<>> {
+// タスクの状態を表すenum class
+// 簡単に3つの状態のみを扱う。
+// タスクの状態
+enum class TutorialTaskState {
+  kBlocked = 0,
+  kQueued,
+  kRunning,
+};
+
+// TutorialTaskの派生クラス
+// タスクの状態に関する情報をメンバ変数に含める
+struct TutorialTask : public Task<> {
+  // この形式のコンストラクタは実装必須。
+  // 基本的には以下のような実装でよい。
+  TutorialTask(ghost::Gtid& gtid, ghost_sw_info& sw_info) :
+    Task<>(gtid, sw_info) {}
+
+  TutorialTaskState GetState() const { return state_; }
+
+  // タスクの状態変化はこのメンバ関数を必ず介すことにする。
+  // タスクの状態変化に関するフック関数を簡単に実装できるようにするため。
+  void SetState(TutorialTaskState state) { state_ = state; }
+
+  // 便利な関数
+  bool blocked() { return state_ == TutorialTaskState::kBlocked; }
+  bool queued() { return state_ == TutorialTaskState::kQueued; }
+  bool running() { return state_ == TutorialTaskState::kRunning; }
+
+ private:
+  TutorialTaskState state_ = TutorialTaskState::kBlocked;
+};
+
+class TutorialScheduler : public BasicDispatchScheduler<TutorialTask> {
 public:
   // コンストラクタ
   // Channelの開設を行う
-  TutorialScheduler(Enclave *enclave, CpuList cpulist, std::shared_ptr<TaskAllocator<Task<>>> allocator)
+  TutorialScheduler(Enclave *enclave, CpuList cpulist, std::shared_ptr<TaskAllocator<TutorialTask>> allocator)
       : BasicDispatchScheduler(enclave, std::move(cpulist), std::move(allocator)) {
     // 管理対象CPUに対してそれぞれ必要な処理を行っていく。
     for (auto cpu: cpulist) {
@@ -34,13 +66,13 @@ public:
 
 protected:
   // コンパイルを通すために実装（中身は無）
-  void TaskNew(Task<>* task, const Message& msg) final;
-  void TaskRunnable(Task<>* task, const Message& msg) final;
-  void TaskDeparted(Task<>* task, const Message& msg) final;
-  void TaskDead(Task<>* task, const Message& msg) final;
-  void TaskYield(Task<>* task, const Message& msg) final;
-  void TaskBlocked(Task<>* task, const Message& msg) final;
-  void TaskPreempted(Task<>* task, const Message& msg) final;
+  void TaskNew(TutorialTask* task, const Message& msg) final;
+  void TaskRunnable(TutorialTask* task, const Message& msg) final;
+  void TaskDeparted(TutorialTask* task, const Message& msg) final;
+  void TaskDead(TutorialTask* task, const Message& msg) final;
+  void TaskYield(TutorialTask* task, const Message& msg) final;
+  void TaskBlocked(TutorialTask* task, const Message& msg) final;
+  void TaskPreempted(TutorialTask* task, const Message& msg) final;
 
 private:
   // Channel用メンバ変数
@@ -49,11 +81,11 @@ private:
   Channel *default_channel_ = nullptr;
   // 実行可能キュー
   // このキューの先頭にあるタスクが次に実行状態となるorすでに現在実行中のタスク
-  std::deque<Task<> *> rq_;
+  std::deque<TutorialTask *> rq_;
 };
 
 inline std::unique_ptr<TutorialScheduler> TutorialMultiThreadedScheduler(Enclave *enclave, CpuList cpulist) {
-  auto allocator = std::make_shared<ThreadSafeMallocTaskAllocator<Task<>>>();
+  auto allocator = std::make_shared<ThreadSafeMallocTaskAllocator<TutorialTask>>();
   auto scheduler = std::make_unique<TutorialScheduler>(enclave, std::move(cpulist), std::move(allocator));
   return scheduler;
 }

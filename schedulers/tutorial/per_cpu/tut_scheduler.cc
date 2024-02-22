@@ -27,7 +27,7 @@ void TutorialScheduler::Schedule(const Cpu &cpu, const StatusWord &agent_sw) {
   }
 
   // nextには次に実行状態にするタスクへのポインタを格納する
-  Task<> *next = nullptr;
+  TutorialTask *next = nullptr;
   // ◎ メッセージ処理のときにTaskNew()メンバ関数などでrq_にタスクが
   //  　プッシュされているはず
   if (!rq_.empty()) {
@@ -35,6 +35,8 @@ void TutorialScheduler::Schedule(const Cpu &cpu, const StatusWord &agent_sw) {
   }
 
   if (next) { 
+    CHECK(!next->blocked());
+
     // next候補があればトランザクションを用意
     req->Open({
       .target = next->gtid,
@@ -46,9 +48,10 @@ void TutorialScheduler::Schedule(const Cpu &cpu, const StatusWord &agent_sw) {
     // トランザクションを発行
     if (req->Commit()) {
       // succeeded !! 
+      next->SetState(TutorialTaskState::kRunning);
     } else {
       std::cerr << "Failed to commit txn." << std::endl;
-      std::cerr << "txn state: " << req->state() << std::endl;
+      std::cerr << "txn state: " << RunRequest::StateToString(req->state()) << std::endl;
     }
   } else {
     // next候補がなければCPUを明け渡す（CPUはIDLE状態に）
@@ -56,7 +59,7 @@ void TutorialScheduler::Schedule(const Cpu &cpu, const StatusWord &agent_sw) {
   }
 }
 
-void TutorialScheduler::TaskNew(Task<>* task, const Message& msg) {
+void TutorialScheduler::TaskNew(TutorialTask* task, const Message& msg) {
   std::cout << msg << std::endl;
     // メッセージのペイロード部分にTASK_NEWメッセージ固有の情報が格納されている。
   const ghost_msg_payload_task_new* payload = 
@@ -67,26 +70,32 @@ void TutorialScheduler::TaskNew(Task<>* task, const Message& msg) {
   // payload->runnableがtrueのときはそのタスクがすでに実行可能状態であるということ、
   // 逆にfalseのときはスリープ状態であることを意味する。
   if (payload->runnable) {
+    task->SetState(TutorialTaskState::kQueued);
     rq_.push_back(task);
   }
 }
 
 // スリープ状態 -> 実行可能状態
-void TutorialScheduler::TaskRunnable(Task<>* task, const Message& msg) {
+void TutorialScheduler::TaskRunnable(TutorialTask* task, const Message& msg) {
+  CHECK(task->blocked());
+
   // 実行可能キューの最後尾にtaskを追加
+  task->SetState(TutorialTaskState::kQueued);
   rq_.push_back(task);
 }
 
 // 実行状態 -> スリープ状態
-void TutorialScheduler::TaskBlocked(Task<>* task, const Message& msg) {
+void TutorialScheduler::TaskBlocked(TutorialTask* task, const Message& msg) {
   CHECK(!rq_.empty());
   CHECK_EQ(task, rq_.front()); // 現在実行状態のタスクはrq_の先頭にいるはず
+  CHECK(task->running());
 
+  task->SetState(TutorialTaskState::kBlocked);
   rq_.pop_front();
 }
 
 // 任意の状態 -> 他のスケジューリングクラス
-void TutorialScheduler::TaskDeparted(Task<>* task, const Message& msg) {
+void TutorialScheduler::TaskDeparted(TutorialTask* task, const Message& msg) {
   // rq_の中にtaskがある場合はrq_から取り除く
   rq_.erase(std::remove(
     rq_.begin(), 
@@ -98,24 +107,32 @@ void TutorialScheduler::TaskDeparted(Task<>* task, const Message& msg) {
 }
 
 // スリープ状態 -> タスクの終了
-void TutorialScheduler::TaskDead(Task<>* task, const Message& msg) {
+void TutorialScheduler::TaskDead(TutorialTask* task, const Message& msg) {
+  CHECK(task->blocked());
+
   // taskが占めるメモリ領域を解放する
   allocator()->FreeTask(task);
 }
 
-// 実行可能状態 -> 実行可能状態
-void TutorialScheduler::TaskYield(Task<>* task, const Message& msg) {
+// 実行状態 -> 実行可能状態
+void TutorialScheduler::TaskYield(TutorialTask* task, const Message& msg) {
   CHECK(!rq_.empty());
   CHECK_EQ(task, rq_.front());
+  CHECK(task->running());
 
   // rq_の先頭のタスクをrq_の最後尾に移動する
+  task->SetState(TutorialTaskState::kQueued);
   rq_.pop_front();
   rq_.push_back(task);
 }
 
-// 実行可能状態 ➙ 実行可能状態
-void TutorialScheduler::TaskPreempted(Task<>* task, const Message& msg) {
-  // 特に実装なし
+// 実行状態 ➙ 実行可能状態
+void TutorialScheduler::TaskPreempted(TutorialTask* task, const Message& msg) {
+  CHECK(!rq_.empty());
+  CHECK_EQ(task, rq_.front());
+  CHECK(task->running());
+
+  task->SetState(TutorialTaskState::kQueued);
 }
 
 } // namespace ghost
