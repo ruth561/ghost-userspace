@@ -1310,3 +1310,15 @@ cc_test(
         "@com_google_googletest//:gtest",
     ],
 )
+
+cc_binary(
+    name = "simple_bash",
+    srcs = [
+        "bins/simple_bash.cc",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":base",
+        ":ghost",
+    ],
+)
