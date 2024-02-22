@@ -1322,3 +1322,17 @@ cc_binary(
         ":ghost",
     ],
 )
+
+cc_binary(
+    name = "tutorial_per_cpu_agent",
+    srcs = [
+        "schedulers/tutorial/per_cpu/tut_agent.cc",
+        "schedulers/tutorial/per_cpu/tut_scheduler.cc",
+        "schedulers/tutorial/per_cpu/tut_scheduler.h",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":agent",
+        ":topology",
+    ],
+)
