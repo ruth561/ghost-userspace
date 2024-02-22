@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib/agent.h"
+#include "lib/ghost.h"
 #include "lib/scheduler.h"
 
 
@@ -22,6 +23,8 @@ public:
         default_channel_ = channels_[cpu.id()].get();
     }
   }
+ 
+  void Schedule(const Cpu &cpu, const StatusWord &agent_sw);
 	
   // 実装必須
   Channel& GetDefaultChannel() final { return *default_channel_; }
@@ -30,7 +33,7 @@ public:
 
 protected:
   // コンパイルを通すために実装（中身は無）
-  void TaskNew(Task<>* task, const Message& msg) final {}
+  void TaskNew(Task<>* task, const Message& msg) final;
   void TaskRunnable(Task<>* task, const Message& msg) final {}
   void TaskDeparted(Task<>* task, const Message& msg) final {}
   void TaskDead(Task<>* task, const Message& msg) final {}
@@ -64,10 +67,9 @@ public:
       
     printf("[ Agent Thread %d ] Finish Initialization !\n", gettid());
     
-    // ★ agentスレッドが終了するまでひたすらCPUをYieldし続ける。
+    // agentスレッドはひたすらTutorialScheduler::Scheduleを呼び出し続ける実装。
     while (!Finished()) {
-      auto req = enclave_->GetRunRequest(cpu());
-      req->LocalYield(status_word().barrier(), 0);
+      scheduler_->Schedule(cpu(), status_word());
     }
   }
 
