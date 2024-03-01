@@ -1348,3 +1348,17 @@ cc_binary(
         ":topology",
     ],
 )
+
+cc_binary(
+    name = "tutorial_centralized_agent",
+    srcs = [
+        "schedulers/tutorial/centralized/tut_agent.cc",
+        "schedulers/tutorial/centralized/tut_scheduler.cc",
+        "schedulers/tutorial/centralized/tut_scheduler.h",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":agent",
+        ":topology",
+    ],
+)
