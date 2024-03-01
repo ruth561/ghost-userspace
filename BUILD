@@ -1346,6 +1346,7 @@ cc_binary(
     deps = [
         ":agent",
         ":topology",
+        ":logger",
     ],
 )
 
@@ -1360,5 +1361,23 @@ cc_binary(
     deps = [
         ":agent",
         ":topology",
+    ],
+)
+
+cc_library(
+    name = "logger",
+    srcs = [
+    ],
+    hdrs = [
+        "lib/logger.h"
+    ],
+    copts = compiler_flags,
+    linkopts = bpf_linkopts + ["-lnuma"],
+    deps = [
+        ":base",
+        ":ghost",
+        ":shared",
+        ":topology",
+        ":trivial_status",
     ],
 )

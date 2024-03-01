@@ -3,6 +3,7 @@
 #include "lib/agent.h"
 #include "lib/ghost.h"
 #include "lib/scheduler.h"
+#include "lib/logger.h"
 #include <deque>
 
 
@@ -108,6 +109,9 @@ public:
     // 最初のこの部分は定形部分。他の全ての初期化の完了を待つ。
     SignalReady();
     WaitForEnclaveReady();
+
+    LOGGER("Hello, World!");
+    LOGGER("AGENT %d", cpu().id());
       
     printf("[ Agent Thread %d ] Finish Initialization !\n", gettid());
     
