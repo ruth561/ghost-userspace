@@ -1381,3 +1381,17 @@ cc_library(
         ":trivial_status",
     ],
 )
+
+cc_binary(
+    name = "edf_app",
+    srcs = [
+        "bins/edf_app/main.cc",
+        "bins/edf_app/app.cc",
+        "bins/edf_app/app.h",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":edf_scheduler",
+    ],
+)
+

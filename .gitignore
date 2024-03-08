@@ -1,3 +1,4 @@
 MODULE.bazel.lock
 .python-version
 log/
+.clangd
