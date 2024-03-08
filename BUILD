@@ -1395,3 +1395,17 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "dl_agent",
+    srcs = [
+        "schedulers/dl/dl_agent.cc",
+        "schedulers/dl/dl_scheduler.cc",
+        "schedulers/dl/dl_scheduler.h",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":agent",
+        ":topology",
+        ":logger",
+    ],
+)
