@@ -4,7 +4,12 @@
 #include "lib/ghost.h"
 #include "lib/scheduler.h"
 #include "lib/logger.h"
+#include "schedulers/dl/dl_orchestrator.h"
+#include <ctime>
 #include <deque>
+#include <functional>
+#include <map>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -59,10 +64,6 @@ struct DeadlineTask : public Task<> {
     return deadline >= rhs.deadline;
   }
 
- private:
-  int cpu_ = -1; // CPUが未割り当てのときは-1
-  DeadlineTaskState state_ = DeadlineTaskState::kBlocked;
-
   // runtime: 累計実行時間（ns）
   // elapsed_runtime: 直前の実行の経過時間（ns）
   // estimated_runtime: 1周期ごとに行う処理の実行時間（ns）
@@ -77,6 +78,12 @@ struct DeadlineTask : public Task<> {
   absl::Duration period = absl::Milliseconds(1);
   absl::Time deadline = absl::InfiniteFuture();
   absl::Time sched_deadline = absl::InfiniteFuture();
+
+  SchedParams *sp = nullptr;
+
+ private:
+  int cpu_ = -1; // CPUが未割り当てのときは-1
+  DeadlineTaskState state_ = DeadlineTaskState::kBlocked;
 };
 
 // Deadlineスケジューラ用の実行可能キュー。
@@ -273,6 +280,11 @@ class DeadlineScheduler : public BasicDispatchScheduler<DeadlineTask> {
   void TaskPreempted(DeadlineTask* task, const Message& msg) final;
 
  private:
+  // SchedParamの更新処理で呼び出される関数
+  void SchedParamsCallback(Orchestrator& orch, const SchedParams* sp,
+                           Gtid oldgtid);
+  const Orchestrator::SchedCallbackFunc kSchedCallbackFunc =
+    std::bind(&DeadlineScheduler::SchedParamsCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 
   DeadlineCpuState *cpu_state(const Cpu &cpu) { return &cpu_states_[cpu.id()]; }
   DeadlineCpuState *cpu_state(int cpu) { return &cpu_states_[cpu]; }
@@ -293,6 +305,9 @@ class DeadlineScheduler : public BasicDispatchScheduler<DeadlineTask> {
 
   // 実行可能キュー。ここに入っているタスクは、状態が実行可能状態となる。
   DeadlineRq rq_;
+
+  // ker: プロセスグループID, value: Orchestrator
+  std::map<pid_t, std::unique_ptr<Orchestrator>> orchs_;
 };
 
 class DeadlineAgent : public LocalAgent {

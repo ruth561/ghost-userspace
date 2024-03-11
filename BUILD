@@ -1401,6 +1401,8 @@ cc_binary(
         "schedulers/dl/dl_agent.cc",
         "schedulers/dl/dl_scheduler.cc",
         "schedulers/dl/dl_scheduler.h",
+        "schedulers/dl/dl_orchestrator.cc",
+        "schedulers/dl/dl_orchestrator.h",
     ],
     copts = compiler_flags,
     deps = [

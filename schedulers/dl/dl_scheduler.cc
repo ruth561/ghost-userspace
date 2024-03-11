@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <ctime>
 
 #include "lib/base.h"
 #include "lib/ghost.h"
@@ -8,12 +9,23 @@
 
 namespace ghost {
 
+void DeadlineScheduler::SchedParamsCallback(Orchestrator& orch, 
+                                            const SchedParams* sp,
+                                            Gtid oldgtid) {
+  printf("[ SchedParamsCallback ] tid = %d\n", oldgtid.tid());
+}
+
 void DeadlineScheduler::GlobalSchedule(const BarrierToken &agent_barrier) {
   // メッセージの処理
   Message msg;
   while (!(msg = global_channel_.Peek()).empty()) {
     DispatchMessage(msg);
     global_channel_.Consume(msg);
+  }
+
+  // 各SchedParamsの値を更新する
+  for (auto& scraper : orchs_) {
+    scraper.second->RefreshSchedParams(kSchedCallbackFunc);
   }
 
   // トランザクションを行うべきCPUのリスト。
@@ -100,6 +112,23 @@ void DeadlineScheduler::TaskNew(DeadlineTask* task, const Message& msg) {
   if (payload->runnable) {
     task->SetState(DeadlineTaskState::kQueued);
     rq_.Push(task);
+  }
+
+  // 新しいスレッドグループだった場合はOrchestratorを追加する。
+  pid_t tgid = task->gtid.tgid();
+  CHECK_GE(tgid, 0);
+  if (orchs_.find(tgid) == orchs_.end()) {
+    auto orch = std::make_unique<Orchestrator>();
+    if (!orch->Init(tgid)) {
+      printf("[ TaskNew ] Successfully init Orchestrator! (tgid = %d)\n", tgid);
+      static SchedParams dummy_sp;
+      task->sp = &dummy_sp;
+      return;
+    } else {
+      printf("[ TaskNew ] Failed to init Orchestrator.. (tgid = %d)\n", tgid);
+    }
+    auto pair = std::make_pair(tgid, std::move(orch));
+    orchs_.insert(std::move(pair));
   }
 }
 
