@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib/agent.h"
+#include "lib/base.h"
 #include "lib/ghost.h"
 #include "lib/scheduler.h"
 #include "lib/logger.h"
@@ -21,6 +22,7 @@ namespace ghost {
 // タスクの状態
 enum class DeadlineTaskState {
   kBlocked = 0,
+  kPaused,
   kQueued,
   kRunning,
 };
@@ -45,6 +47,7 @@ struct DeadlineTask : public Task<> {
   bool blocked() { return state_ == DeadlineTaskState::kBlocked; }
   bool queued() { return state_ == DeadlineTaskState::kQueued; }
   bool running() { return state_ == DeadlineTaskState::kRunning; }
+  bool paused() { return state_ == DeadlineTaskState::kPaused; }
 
   // 2つのタスクを比較し、どちらの優先度の方が高いかを返す比較関数。
   // 絶対デッドラインが近い方のタスクを優先度高く評価する。
@@ -64,22 +67,10 @@ struct DeadlineTask : public Task<> {
     return deadline >= rhs.deadline;
   }
 
-  // runtime: 累計実行時間（ns）
-  // elapsed_runtime: 直前の実行の経過時間（ns）
-  // estimated_runtime: 1周期ごとに行う処理の実行時間（ns）
-  //                    最初に設定される値
-  // deadline: 周期実行での相対デッドライン
-  // sched_deadline: この時刻までにタスクを実行状態にしないといけない指標
-  //                 sched_deadline = deadline - estimated_runtime
-  absl::Duration runtime = absl::ZeroDuration();
-  absl::Duration elapsed_runtime = absl::ZeroDuration();
-  absl::Duration estimated_runtime = absl::Milliseconds(1);
-  absl::Duration relative_deadline = absl::Milliseconds(1);
-  absl::Duration period = absl::Milliseconds(1);
+  // deadline: 絶対デッドライン
   absl::Time deadline = absl::InfiniteFuture();
-  absl::Time sched_deadline = absl::InfiniteFuture();
 
-  SchedParams *sp = nullptr;
+  const SchedParams *sp = nullptr;
 
  private:
   int cpu_ = -1; // CPUが未割り当てのときは-1
@@ -222,6 +213,7 @@ class DeadlineScheduler : public BasicDispatchScheduler<DeadlineTask> {
       global_cpu_(cpus()[0].id()), // CPUリストの先頭のCPUをグローバルCPUとして設定する
       global_channel_(GHOST_MAX_QUEUE_ELEMS, 0) {
     CHECK(cpus().IsSet(global_cpu_));
+    init_time = MonotonicNow();
   }
 
   ~DeadlineScheduler() {}
@@ -305,6 +297,10 @@ class DeadlineScheduler : public BasicDispatchScheduler<DeadlineTask> {
 
   // 実行可能キュー。ここに入っているタスクは、状態が実行可能状態となる。
   DeadlineRq rq_;
+
+  // スケジューラを起動した時刻。
+  // 各時刻はスケジューラを起動した時刻からの相対時間で扱う。
+  absl::Time init_time;
 
   // ker: プロセスグループID, value: Orchestrator
   std::map<pid_t, std::unique_ptr<Orchestrator>> orchs_;

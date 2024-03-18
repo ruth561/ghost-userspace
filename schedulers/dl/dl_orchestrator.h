@@ -131,6 +131,8 @@ class Orchestrator {
   Orchestrator& operator=(Orchestrator&&) = delete;
   Orchestrator(Orchestrator&&) = delete;
 
+  PrioTable &prio_table() { return table_; }
+
  private:
   void RefreshSchedParam(uint32_t sid, const SchedCallbackFunc& SchedCallback);
 

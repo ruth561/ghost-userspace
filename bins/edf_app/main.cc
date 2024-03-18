@@ -18,6 +18,7 @@ int EdfProcess(void);
 // 処理を簡略化するために、EDFのアプリケーションは別のプロセスで
 // 実行することにする➙EdfProcess
 int main() {
+  /*
   // EDFスケジューラを起動する。
   // Centralized型で管理するCPUが2つしかもたないようにしており、
   // 基本的にはCPU0がSatellite CPU、CPU1がGlobal CPUとして動作させる。
@@ -27,6 +28,7 @@ int main() {
     topo->ParseCpuStr("0,1"),
     topo->cpu(1));
   auto uap = new AgentProcess<GlobalEdfAgent<LocalEnclave>, GlobalConfig>(cfg);
+  */
 
   // EDFスレッド用のプロセスを生成
   ForkedProcess fp(EdfProcess);
@@ -39,19 +41,13 @@ int main() {
     std::cin >> s;
     if (s == "q" || s == "quit")
       break;
-    try {
-      // RPCは数値によって呼び出す処理を指定する。
-      int req = std::stoi(s);
-      long ret = uap->Rpc(req);
-      std::cout << "RpcResponse: " << ret << std::endl;
-    } catch (...) {
-      std::cerr << "[ Error ] Invalid operation: " << s << std::endl;
-    }
   }
 
   // EDFプロセスを先に終了させ、その後、Agentプロセスを終了させる。
   fp.KillChild(SIGKILL);
+  /*
   delete uap;
+   */
 
   return 0;
 }

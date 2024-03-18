@@ -16,7 +16,7 @@ int main() {
   // ghOStスレッドに使う。
   AgentConfig config;
   config.topology_ = MachineTopology();
-  config.cpus_ = MachineTopology()->ParseCpuStr("0-4");
+  config.cpus_ = MachineTopology()->ParseCpuStr("0,1");
   auto uap = new AgentProcess<DeadlineFullAgent, AgentConfig>(config);
 
   // 対話形式のUIで、RPCを通して手元のプロセスとAgent用プロセスの間で通信を行う。

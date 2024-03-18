@@ -44,7 +44,7 @@ inline void MarkSchedItemRunnable(PrioTable* table, int sidx) {
 
 // table->sched_item(sidx)の設定値を更新する関数。
 inline void UpdateSchedItem(PrioTable* table, uint32_t sidx, uint32_t wcid,
-                     uint32_t flags, const Gtid& gtid, absl::Duration d) {
+                     uint32_t flags, const Gtid& gtid, absl::Duration relative_deadline) {
   struct sched_item* si;
 
   si = table->sched_item(sidx);
@@ -54,7 +54,7 @@ inline void UpdateSchedItem(PrioTable* table, uint32_t sidx, uint32_t wcid,
   si->wcid = wcid;
   si->flags = flags;
   si->gpid = gtid.id();
-  si->deadline = absl::ToUnixNanos(MonotonicNow() + d);
+  si->deadline = absl::ToUnixNanos(MonotonicNow() + relative_deadline);
   si->seqcount.write_end(seq);
   table->MarkUpdatedIndex(sidx, /* num_retries = */ 3);
 }

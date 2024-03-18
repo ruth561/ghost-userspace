@@ -96,7 +96,7 @@ int EdfProcess(void) {
                     static_cast<int>(WorkClass::kWcPeriodic1per3), 
                     SCHED_ITEM_RUNNABLE, 
                     task_1_3.gtid(), 
-                    absl::Milliseconds(0)); // Periodicは関係ない 
+                    absl::Milliseconds(3000)); // Periodicは関係ない 
   };
 
   // Task3per5をghOStスレッドとして生成する。
@@ -112,7 +112,7 @@ int EdfProcess(void) {
                     static_cast<int>(WorkClass::kWcPeriodic3per5), 
                     SCHED_ITEM_RUNNABLE, 
                     task_3_5.gtid(), 
-                    absl::Milliseconds(0)); // Periodicは関係ない
+                    absl::Milliseconds(5000)); // Periodicは関係ない
   };
   
   for (int sec = 0; sec < 15; sec++) {
