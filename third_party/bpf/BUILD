@@ -165,3 +165,12 @@ bpf_program(
     ],
     bpf_object = "test_bpf.o",
 )
+
+bpf_program(
+    name = "tutorial_bpf",
+    src = "tutorial.bpf.c",
+    hdrs = [
+        "//:kernel/vmlinux_ghost_5_11.h",
+    ],
+    bpf_object = "tutorial_bpf.o",
+)

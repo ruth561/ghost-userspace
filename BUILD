@@ -1411,3 +1411,22 @@ cc_binary(
         ":logger",
     ],
 )
+
+bpf_skeleton(
+    name = "tutorial_bpf_skel",
+    bpf_object = "//third_party/bpf:tutorial_bpf",
+    skel_hdr = "schedulers/tutorial/bpf/tut_bpf.skel.h",
+)
+
+cc_binary(
+    name = "tutorial_bpf",
+    srcs = [
+        "bins/tutorial_bpf.cc",
+        "schedulers/tutorial/bpf/tut_bpf.skel.h",
+    ],
+    copts = compiler_flags,
+    deps = [
+        ":agent",
+        "@linux//:libbpf",
+    ],
+)
